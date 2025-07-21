@@ -1,0 +1,21 @@
+{
+  "name": "@camera.ui/cloud-client",
+  "version": "0.0.1",
+  "private": true,
+  "description": "camera.ui cloud client",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seydx/camera.ui.git"
+  },
+  "keywords": [
+    "camera.ui",
+    "cloud"
+  ],
+  "author": "seydx",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/seydx/camera.ui/issues"
+  },
+  "homepage": "https://github.com/seydx/camera.ui#readme"
+}

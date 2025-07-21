@@ -2,6 +2,9 @@
 /cloud-client
 /cloud-client.exe
 
+/cloud
+/cloud.exe
+
 # Environment
 .env
 .env.local
