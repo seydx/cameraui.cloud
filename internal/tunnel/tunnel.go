@@ -53,12 +53,12 @@ type AuthFrame struct {
 }
 
 type TunnelRequest struct {
-	ServerID      string `json:"serverId"`
-	ServerSecret  string `json:"serverSecret"`
-	SessionID     string `json:"sessionId"`
-	Challenge     string `json:"challenge"`
-	ProxyEndpoint string `json:"proxyEndpoint"`
-	Timestamp     int64  `json:"timestamp"`
+	ServerID       string `json:"serverId"`
+	ServerSecret   string `json:"serverSecret"`
+	SessionID      string `json:"sessionId"`
+	Challenge      string `json:"challenge"`
+	TunnelEndpoint string `json:"tunnelEndpoint"`
+	Timestamp      int64  `json:"timestamp"`
 }
 
 var currentTunnel *TunnelConnection
@@ -132,7 +132,7 @@ func handleConnect(req TunnelRequest) error {
 		req.ServerSecret,
 		req.SessionID,
 		req.Challenge,
-		req.ProxyEndpoint,
+		req.TunnelEndpoint,
 	)
 
 	// Set up event handlers
