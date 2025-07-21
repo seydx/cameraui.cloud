@@ -1,0 +1,23 @@
+# Binary
+/cloud-client
+/cloud-client.exe
+
+# Environment
+.env
+.env.local
+
+# Data
+data/
+*.db
+
+# Frontend
+frontend/dist/
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+/.tmp
