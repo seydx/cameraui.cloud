@@ -4,4 +4,4 @@ The cloud-client enables secure tunnel connections between local camera.ui insta
 
 ---
 
-*Part of the camera.ui ecosystem - A comprehensive camera management solution.*
+_Part of the camera.ui ecosystem - A comprehensive camera management solution._

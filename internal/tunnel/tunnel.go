@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -168,21 +169,44 @@ func (t *TunnelConnection) Connect() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	// Parse endpoint
-	host, port, err := net.SplitHostPort(t.Endpoint)
-	if err != nil {
-		// No port specified, use default
-		host = t.Endpoint
-		port = "8093"
+	// Parse endpoint URL to extract host and determine port
+	var host, port, address string
+	
+	// Try to parse as URL first
+	if u, err := url.Parse(t.Endpoint); err == nil && u.Scheme != "" {
+		host = u.Hostname()
+		port = u.Port()
+		if port == "" {
+			// Use default ports based on scheme
+			if u.Scheme == "https" {
+				port = "443"
+			} else {
+				port = "80"
+			}
+		}
+		address = net.JoinHostPort(host, port)
+	} else {
+		// Try to parse as host:port
+		var err error
+		host, port, err = net.SplitHostPort(t.Endpoint)
+		if err != nil {
+			// No port specified, assume it's just a hostname
+			host = t.Endpoint
+			port = "9092" // Default tunnel port
+			address = net.JoinHostPort(host, port)
+		} else {
+			// Valid host:port format
+			address = t.Endpoint
+		}
 	}
 
 	// Connect with TLS
-	conn, err := tls.Dial("tcp", t.Endpoint, &tls.Config{
+	conn, err := tls.Dial("tcp", address, &tls.Config{
 		ServerName: host,
 		MinVersion: tls.VersionTLS12,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to connect to %s:%s: %w", host, port, err)
+		return fmt.Errorf("failed to connect to %s: %w", address, err)
 	}
 
 	t.conn = conn
