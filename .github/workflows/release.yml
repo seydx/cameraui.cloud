@@ -18,21 +18,21 @@ jobs:
 
       - name: Build cloud_win64
         env: { GOOS: windows, GOARCH: amd64 }
-        run: go build -ldflags "-s -w" -trimpath -o cloud
+        run: go build -ldflags "-s -w" -trimpath -o cloud.exe
       - name: Upload cloud_win64
         uses: actions/upload-artifact@v4
         with: { name: cloud_win64, path: cloud.exe }
 
       - name: Build cloud_win32
         env: { GOOS: windows, GOARCH: 386 }
-        run: go build -ldflags "-s -w" -trimpath -o cloud
+        run: go build -ldflags "-s -w" -trimpath -o cloud.exe
       - name: Upload cloud_win32
         uses: actions/upload-artifact@v4
         with: { name: cloud_win32, path: cloud.exe }
 
       - name: Build cloud_win_arm64
         env: { GOOS: windows, GOARCH: arm64 }
-        run: go build -ldflags "-s -w" -trimpath -o cloud
+        run: go build -ldflags "-s -w" -trimpath -o cloud.exe
       - name: Upload cloud_win_arm64
         uses: actions/upload-artifact@v4
         with: { name: cloud_win_arm64, path: cloud.exe }
