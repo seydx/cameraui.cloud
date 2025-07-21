@@ -1,3 +1,5 @@
+// (c) go2rtc
+
 package log
 
 type LogWriter struct {

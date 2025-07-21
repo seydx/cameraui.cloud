@@ -1,17 +1,12 @@
+// (c) go2rtc
+
 package shell
 
 import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
-)
-
-var (
-	secretReplacer *strings.Replacer
-	secretValues   map[string]bool
-	secretMutex    sync.RWMutex
 )
 
 func QuoteSplit(s string) []string {
@@ -47,15 +42,4 @@ func RunUntilSignal() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	println("exit with signal:", (<-sigs).String())
-}
-
-func Redact(text string) string {
-	secretMutex.RLock()
-	defer secretMutex.RUnlock()
-
-	if secretReplacer == nil {
-		return text
-	}
-
-	return secretReplacer.Replace(text)
 }

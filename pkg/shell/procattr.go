@@ -1,3 +1,5 @@
+// (c) go2rtc
+
 //go:build !linux
 
 package shell

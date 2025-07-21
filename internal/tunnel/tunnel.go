@@ -27,7 +27,6 @@ import (
 )
 
 type TunnelConnection struct {
-	// Config
 	ServerID     string
 	ServerSecret string
 	SessionID    string
@@ -35,27 +34,23 @@ type TunnelConnection struct {
 	Endpoint     string
 	LocalPort    string
 
-	// State
 	conn        net.Conn
 	session     *yamux.Session
 	connected   atomic.Bool
 	ConnectedAt time.Time
 	mu          sync.Mutex
 
-	// Callbacks
 	OnConnected    func()
 	OnDisconnected func(reason string)
 	OnError        func(error)
 }
 
-// AuthFrame is the first message sent when establishing a tunnel connection.
-// It contains authentication data that the proxy will verify with the cloud service.
 type AuthFrame struct {
-	Type      string `json:"type"`       // Should be "AUTH"
-	ServerID  string `json:"server_id"`  // Server ID
-	SessionID string `json:"session_id"` // Session ID from push notification
-	Signature string `json:"signature"`  // HMAC-SHA256(challenge:sessionId:timestamp)
-	Timestamp int64  `json:"timestamp"`  // Unix timestamp
+	Type      string `json:"type"`
+	ServerID  string `json:"server_id"`
+	SessionID string `json:"session_id"`
+	Signature string `json:"signature"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 type TunnelRequest struct {
@@ -81,7 +76,7 @@ func Init() {
 		log.Logger.Fatal().Msg("Proxy client is not initialized")
 	}
 
-	// Handle tunnel requests (request/response pattern)
+	// Handle tunnel requests
 	proxyClient.RegisterHandler(ConnectSubject, func(msg *nats.Msg) {
 		var req TunnelRequest
 
@@ -90,7 +85,6 @@ func Init() {
 			return
 		}
 
-		// Handle connection
 		if err := handleConnect(req); err != nil {
 			proxyClient.RespondError(msg, err.Error())
 		} else {
@@ -146,17 +140,14 @@ func handleConnect(req TunnelRequest) error {
 
 	// Set up event handlers for tunnel lifecycle
 	currentTunnel.OnConnected = func() {
-		// Tunnel established successfully
 		log.Logger.Debug().Msg("Tunnel connection established")
 	}
 
 	currentTunnel.OnDisconnected = func(reason string) {
-		// Tunnel disconnected
 		log.Logger.Debug().Str("reason", reason).Msg("Tunnel connection closed")
 	}
 
 	currentTunnel.OnError = func(err error) {
-		// Handle tunnel errors silently in production
 		log.Logger.Error().Err(err).Msg("Tunnel connection error")
 	}
 
@@ -176,13 +167,6 @@ func NewTunnelConnection(serverID, serverSecret, sessionID, challenge, endpoint 
 	}
 }
 
-// Connect establishes a tunnel connection to the proxy server.
-// Steps:
-// 1. Parse endpoint URL and determine correct port (443 for HTTPS, custom port, etc)
-// 2. Establish TLS connection (with self-signed cert support)
-// 3. Send authentication frame with HMAC signature
-// 4. Create YAMUX session for stream multiplexing
-// 5. Start accepting incoming streams from the proxy
 func (t *TunnelConnection) Connect() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -240,8 +224,6 @@ func (t *TunnelConnection) Connect() error {
 	// Calculate signature
 	payload := fmt.Sprintf("%s:%s:%d", t.Challenge, t.SessionID, authFrame.Timestamp)
 	authFrame.Signature = t.calculateHMAC(payload)
-
-	// Send authentication frame to establish tunnel
 
 	// Send as JSON + newline
 	authJSON, err := json.Marshal(authFrame)
@@ -310,7 +292,6 @@ func (t *TunnelConnection) acceptStreams() {
 			break
 		}
 
-		// Handle stream
 		go t.handleStream(stream)
 	}
 
@@ -318,12 +299,6 @@ func (t *TunnelConnection) acceptStreams() {
 	t.disconnect("session closed")
 }
 
-// handleStream processes an incoming request stream from the proxy.
-// It uses httputil.ReverseProxy for robust HTTP handling:
-// - Parses the incoming HTTP request
-// - Forwards to local camera.ui server (with HTTPS support)
-// - Handles special cases like WebSocket upgrades
-// - Writes response back through the YAMUX stream
 func (t *TunnelConnection) handleStream(stream net.Conn) {
 	defer stream.Close()
 
@@ -362,7 +337,6 @@ func (t *TunnelConnection) handleStream(stream net.Conn) {
 		},
 	}
 
-	// Log errors from the proxy
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		if t.OnError != nil {
 			t.OnError(fmt.Errorf("proxy error: %w", err))
@@ -372,9 +346,6 @@ func (t *TunnelConnection) handleStream(stream net.Conn) {
 		fmt.Fprintf(w, "Bad Gateway: %v", err)
 	}
 
-	// Use default proxy director
-
-	// Create a response writer that writes to the stream
 	rw := &streamResponseWriter{
 		stream: stream,
 		header: make(http.Header),
@@ -382,22 +353,8 @@ func (t *TunnelConnection) handleStream(stream net.Conn) {
 
 	// Serve the request through the proxy
 	proxy.ServeHTTP(rw, req)
-
-	// Request proxied successfully
 }
 
-// isWebSocketRequest checks if the request is a WebSocket upgrade
-func isWebSocketRequest(r *http.Request) bool {
-	return strings.EqualFold(r.Header.Get("Upgrade"), "websocket") &&
-		strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade")
-}
-
-// handleWebSocketStream handles WebSocket connections that require special processing.
-// WebSocket connections can't use httputil.ReverseProxy because they need:
-// - Direct TCP connection after protocol upgrade
-// - Bidirectional streaming without HTTP framing
-// - Proper handling of the connection hijacking process
-// This function manually forwards the upgrade and establishes a TCP tunnel.
 func (t *TunnelConnection) handleWebSocketStream(stream net.Conn, req *http.Request, reader *bufio.Reader) {
 	// Create target URL for WebSocket
 	targetURL := fmt.Sprintf("wss://localhost:%s%s", t.LocalPort, req.URL.Path)
@@ -481,48 +438,6 @@ func (t *TunnelConnection) handleWebSocketStream(stream net.Conn, req *http.Requ
 
 		wg.Wait()
 	}
-}
-
-// streamResponseWriter implements http.ResponseWriter for a net.Conn stream
-type streamResponseWriter struct {
-	stream      net.Conn
-	header      http.Header
-	wroteHeader bool
-	statusCode  int
-}
-
-func (w *streamResponseWriter) Header() http.Header {
-	return w.header
-}
-
-func (w *streamResponseWriter) Write(data []byte) (int, error) {
-	if !w.wroteHeader {
-		w.WriteHeader(http.StatusOK)
-	}
-	return w.stream.Write(data)
-}
-
-func (w *streamResponseWriter) WriteHeader(statusCode int) {
-	if w.wroteHeader {
-		return
-	}
-	w.wroteHeader = true
-	w.statusCode = statusCode
-
-	// Write status line
-	statusLine := fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, http.StatusText(statusCode))
-	w.stream.Write([]byte(statusLine))
-
-	// Write headers
-	for key, values := range w.header {
-		for _, value := range values {
-			headerLine := fmt.Sprintf("%s: %s\r\n", key, value)
-			w.stream.Write([]byte(headerLine))
-		}
-	}
-
-	// End headers
-	w.stream.Write([]byte("\r\n"))
 }
 
 func (t *TunnelConnection) calculateHMAC(payload string) string {
