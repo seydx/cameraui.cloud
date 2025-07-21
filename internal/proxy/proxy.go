@@ -38,8 +38,6 @@ func GetClient() *Client {
 }
 
 func (c *Client) RegisterHandler(subject string, handler nats.MsgHandler) error {
-	log.Logger.Debug().Str("subject", subject).Msg("Registering handler")
-
 	sub, err := c.conn.Subscribe(subject, handler)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s: %w", subject, err)
@@ -54,11 +52,6 @@ func (c *Client) RegisterHandler(subject string, handler nats.MsgHandler) error 
 }
 
 func (c *Client) RegisterQueueHandler(subject, queue string, handler nats.MsgHandler) error {
-	log.Logger.Debug().
-		Str("subject", subject).
-		Str("queue", queue).
-		Msg("Registering queue handler")
-
 	sub, err := c.conn.QueueSubscribe(subject, queue, handler)
 	if err != nil {
 		return fmt.Errorf("failed to queue subscribe to %s: %w", subject, err)
@@ -86,11 +79,6 @@ func (c *Client) Request(subject string, data interface{}, timeout time.Duration
 		return nil, fmt.Errorf("failed to pack request: %w", err)
 	}
 
-	log.Logger.Trace().
-		Str("subject", subject).
-		Dur("timeout", timeout).
-		Msg("request")
-
 	var response Response
 
 	responseMsg, err := c.conn.Request(subject, packed, timeout)
@@ -114,8 +102,6 @@ func (c *Client) RequestWithContext(ctx context.Context, subject string, data in
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack request: %w", err)
 	}
-
-	log.Logger.Trace().Str("subject", subject).Msg("request with context")
 
 	var response Response
 
@@ -162,7 +148,6 @@ func (c *Client) RespondSuccess(msg *nats.Msg, data interface{}) error {
 
 func (c *Client) Close() {
 	if c.conn != nil {
-		log.Logger.Info().Msg("Closing proxy connection")
 		c.conn.Close()
 	}
 }
@@ -196,7 +181,7 @@ func connect() (*Client, error) {
 	cfg := app.GetConfig()
 
 	opts := []nats.Option{
-		nats.Name("camera.ui Cloud Client"),
+		nats.Name("camera.ui cloud"),
 		nats.UserInfo(cfg.NATSUser, cfg.NATSPassword),
 		nats.ReconnectWait(2 * time.Second),
 		nats.MaxReconnects(-1), // infinite reconnects
@@ -217,7 +202,6 @@ func connect() (*Client, error) {
 	var err error
 
 	for _, endpoint := range cfg.NATSEndpoints {
-		log.Logger.Debug().Msg("Connecting to camera.ui server")
 		conn, err = nats.Connect(endpoint, opts...)
 		if err == nil {
 			break
@@ -227,8 +211,6 @@ func connect() (*Client, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("failed to connect to camera.ui server: %w", err)
 	}
-
-	log.Logger.Info().Msg("Connected to camera.ui server")
 
 	client := &Client{
 		conn:     conn,

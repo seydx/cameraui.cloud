@@ -133,6 +133,8 @@ func handleConnect(req TunnelRequest) error {
 		currentTunnel.Close()
 	}
 
+	log.Logger.Debug().Msg("New tunnel connection request")
+
 	// Create new tunnel connection
 	currentTunnel = NewTunnelConnection(
 		req.ServerID,
@@ -145,14 +147,17 @@ func handleConnect(req TunnelRequest) error {
 	// Set up event handlers for tunnel lifecycle
 	currentTunnel.OnConnected = func() {
 		// Tunnel established successfully
+		log.Logger.Debug().Msg("Tunnel connection established")
 	}
 
 	currentTunnel.OnDisconnected = func(reason string) {
 		// Tunnel disconnected
+		log.Logger.Debug().Str("reason", reason).Msg("Tunnel connection closed")
 	}
 
 	currentTunnel.OnError = func(err error) {
 		// Handle tunnel errors silently in production
+		log.Logger.Error().Err(err).Msg("Tunnel connection error")
 	}
 
 	return currentTunnel.Connect()
