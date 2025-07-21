@@ -89,8 +89,7 @@ func Init() {
 			proxyClient.RespondError(msg, err.Error())
 		} else {
 			proxyClient.RespondSuccess(msg, map[string]interface{}{
-				"status":   "connected",
-				"serverId": req.ServerID,
+				"connected": true,
 			})
 		}
 	})
@@ -188,12 +187,11 @@ func (t *TunnelConnection) Connect() error {
 	} else {
 		// Try to parse as host:port
 		var err error
-		host, port, err = net.SplitHostPort(t.Endpoint)
+		host, _, err = net.SplitHostPort(t.Endpoint)
 		if err != nil {
 			// No port specified, assume it's just a hostname
 			host = t.Endpoint
-			port = "9092" // Default tunnel port
-			address = net.JoinHostPort(host, port)
+			address = net.JoinHostPort(host, "9092")
 		} else {
 			// Valid host:port format
 			address = t.Endpoint
