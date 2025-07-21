@@ -10,9 +10,6 @@
 data/
 *.db
 
-# Frontend
-frontend/dist/
-
 # OS
 .DS_Store
 
