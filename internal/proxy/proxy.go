@@ -2,12 +2,12 @@ package proxy
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/seydx/cameraui.com/cloud-client/internal/app"
+	"github.com/seydx/cameraui.com/cloud-client/internal/packer"
 	"github.com/seydx/cameraui.com/cloud-client/pkg/log"
 )
 
@@ -17,9 +17,9 @@ type Client struct {
 }
 
 type Response struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
+	Success bool        `msgpack:"success"`
+	Data    interface{} `msgpack:"data,omitempty"`
+	Error   string      `msgpack:"error,omitempty"`
 }
 
 var GlobalClient *Client
@@ -72,18 +72,18 @@ func (c *Client) RegisterQueueHandler(subject, queue string, handler nats.MsgHan
 }
 
 func (c *Client) Publish(subject string, data interface{}) error {
-	payload, err := json.Marshal(data)
+	packed, err := packer.PackMessage(data)
 	if err != nil {
-		return fmt.Errorf("failed to marshal data: %w", err)
+		return fmt.Errorf("failed to pack message: %w", err)
 	}
 
-	return c.conn.Publish(subject, payload)
+	return c.conn.Publish(subject, packed)
 }
 
-func (c *Client) Request(subject string, data interface{}, timeout time.Duration) (*nats.Msg, error) {
-	payload, err := json.Marshal(data)
+func (c *Client) Request(subject string, data interface{}, timeout time.Duration) (*Response, error) {
+	packed, err := packer.PackMessage(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("failed to pack request: %w", err)
 	}
 
 	log.Logger.Trace().
@@ -91,18 +91,44 @@ func (c *Client) Request(subject string, data interface{}, timeout time.Duration
 		Dur("timeout", timeout).
 		Msg("request")
 
-	return c.conn.Request(subject, payload, timeout)
+	var response Response
+
+	responseMsg, err := c.conn.Request(subject, packed, timeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request %s: %w", subject, err)
+	}
+
+	if err := packer.UnpackMessage(responseMsg.Data, &response); err != nil {
+		return nil, fmt.Errorf("failed to unpack response: %w", err)
+	}
+
+	if !response.Success {
+		return nil, fmt.Errorf("request failed: %s", response.Error)
+	}
+
+	return &response, nil
 }
 
-func (c *Client) RequestWithContext(ctx context.Context, subject string, data interface{}) (*nats.Msg, error) {
-	payload, err := json.Marshal(data)
+func (c *Client) RequestWithContext(ctx context.Context, subject string, data interface{}) (*Response, error) {
+	packed, err := packer.PackMessage(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("failed to pack request: %w", err)
 	}
 
 	log.Logger.Trace().Str("subject", subject).Msg("request with context")
 
-	return c.conn.RequestWithContext(ctx, subject, payload)
+	var response Response
+
+	responseMsg, err := c.conn.RequestWithContext(ctx, subject, packed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request %s: %w", subject, err)
+	}
+
+	if err := packer.UnpackMessage(responseMsg.Data, &response); err != nil {
+		return nil, fmt.Errorf("failed to unpack response: %w", err)
+	}
+
+	return &response, nil
 }
 
 func (c *Client) Respond(msg *nats.Msg, data interface{}) error {
@@ -110,12 +136,12 @@ func (c *Client) Respond(msg *nats.Msg, data interface{}) error {
 		return fmt.Errorf("no reply subject in message")
 	}
 
-	payload, err := json.Marshal(data)
+	packed, err := packer.PackMessage(data)
 	if err != nil {
-		return fmt.Errorf("failed to marshal response: %w", err)
+		return fmt.Errorf("failed to pack response: %w", err)
 	}
 
-	return c.conn.Publish(msg.Reply, payload)
+	return c.conn.Publish(msg.Reply, packed)
 }
 
 func (c *Client) RespondError(msg *nats.Msg, message string) error {
@@ -170,7 +196,7 @@ func connect() (*Client, error) {
 	cfg := app.GetConfig()
 
 	opts := []nats.Option{
-		nats.Name("nvr"),
+		nats.Name("camera.ui Cloud Client"),
 		nats.UserInfo(cfg.NATSUser, cfg.NATSPassword),
 		nats.ReconnectWait(2 * time.Second),
 		nats.MaxReconnects(-1), // infinite reconnects

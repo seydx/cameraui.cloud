@@ -7,6 +7,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/nats-io/nats.go v1.43.0
 	github.com/rs/zerolog v1.34.0
+	github.com/vmihailenco/msgpack/v5 v5.4.1
 )
 
 require (
@@ -14,6 +15,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/nats-io/nkeys v0.4.11 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 )
