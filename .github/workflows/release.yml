@@ -14,7 +14,7 @@ jobs:
 
       - name: Setup Go
         uses: actions/setup-go@v5
-        with: { go-version: '1.24' }
+        with: { go-version: '1.25.0' }
 
       - name: Build cloud_win64
         env: { GOOS: windows, GOARCH: amd64 }
