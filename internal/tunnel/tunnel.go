@@ -108,16 +108,23 @@ func Init() {
 
 	// Handle status requests
 	proxyClient.RegisterHandler(StatusSubject, func(msg *nats.Msg) {
-		if currentTunnel == nil {
+		if currentTunnel == nil || !currentTunnel.IsConnected() {
 			proxyClient.RespondSuccess(msg, map[string]interface{}{
-				"connected": false,
+				"status": "disconnected",
 			})
 			return
 		}
 
-		proxyClient.RespondSuccess(msg, map[string]interface{}{
-			"connected": true,
-		})
+		result := map[string]interface{}{
+			"status":       "connected",
+			"connected_at": currentTunnel.ConnectedAt.UnixMilli(),
+		}
+
+		if currentTunnel.session != nil {
+			result["active_streams"] = currentTunnel.session.NumStreams()
+		}
+
+		proxyClient.RespondSuccess(msg, result)
 	})
 }
 

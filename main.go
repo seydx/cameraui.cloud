@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	app.Version = "0.0.3"
+	app.Version = "0.0.5"
 
 	// Initialize logger
 	log.Init()
