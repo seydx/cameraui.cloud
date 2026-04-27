@@ -1,9 +1,13 @@
 {
   "name": "@camera.ui/cloud-client",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "private": true,
   "description": "camera.ui cloud client",
-  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "update": "updates --update ./",
+    "install-updates": "npm i --save"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/seydx/camera.ui.git"
@@ -17,5 +21,8 @@
   "bugs": {
     "url": "https://github.com/seydx/camera.ui/issues"
   },
-  "homepage": "https://github.com/seydx/camera.ui#readme"
+  "homepage": "https://github.com/seydx/camera.ui#readme",
+  "devDependencies": {
+    "updates": "^17.16.3"
+  }
 }

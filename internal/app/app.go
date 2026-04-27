@@ -10,10 +10,14 @@ import (
 )
 
 var (
+	// Version is the build version, set by main before Init runs.
 	Version string
-	Info    = make(map[string]any)
+	// Info exposes runtime metadata (version, revision) for diagnostics.
+	Info = make(map[string]any)
 )
 
+// Init validates required environment variables, loads config, and logs
+// startup metadata. Calls log.Fatal on missing environment variables.
 func Init() {
 	revision, vcsTime := readRevisionTime()
 
@@ -60,23 +64,33 @@ func validateEnvironment() {
 }
 
 func readRevisionTime() (revision, vcsTime string) {
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, setting := range info.Settings {
-			switch setting.Key {
-			case "vcs.revision":
-				if len(setting.Value) > 7 {
-					revision = setting.Value[:7]
-				} else {
-					revision = setting.Value
-				}
-			case "vcs.time":
-				vcsTime = setting.Value
-			case "vcs.modified":
-				if setting.Value == "true" {
-					revision = "mod." + revision
-				}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+
+	// Two-pass: info.Settings iteration order isn't guaranteed, so collect
+	// revision and the modified flag separately, then apply the "mod." prefix.
+	// The previous single-pass version silently produced wrong dirty-build
+	// strings whenever vcs.modified came before vcs.revision.
+	var modified bool
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			if len(setting.Value) > 7 {
+				revision = setting.Value[:7]
+			} else {
+				revision = setting.Value
 			}
+		case "vcs.time":
+			vcsTime = setting.Value
+		case "vcs.modified":
+			modified = setting.Value == "true"
 		}
+	}
+
+	if modified {
+		revision = "mod." + revision
 	}
 	return
 }

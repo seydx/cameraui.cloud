@@ -10,101 +10,101 @@ jobs:
     env: { CGO_ENABLED: 0 }
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Go
-        uses: actions/setup-go@v5
-        with: { go-version: '1.25.0' }
+        uses: actions/setup-go@v6
+        with: { go-version: "1.25" }
 
       - name: Build cloud_win64
         env: { GOOS: windows, GOARCH: amd64 }
         run: go build -ldflags "-s -w" -trimpath -o cloud.exe
       - name: Upload cloud_win64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_win64, path: cloud.exe }
 
       - name: Build cloud_win32
         env: { GOOS: windows, GOARCH: 386 }
         run: go build -ldflags "-s -w" -trimpath -o cloud.exe
       - name: Upload cloud_win32
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_win32, path: cloud.exe }
 
       - name: Build cloud_win_arm64
         env: { GOOS: windows, GOARCH: arm64 }
         run: go build -ldflags "-s -w" -trimpath -o cloud.exe
       - name: Upload cloud_win_arm64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_win_arm64, path: cloud.exe }
 
       - name: Build cloud_linux_amd64
         env: { GOOS: linux, GOARCH: amd64 }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_linux_amd64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_linux_amd64, path: cloud }
 
       - name: Build cloud_linux_i386
         env: { GOOS: linux, GOARCH: 386 }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_linux_i386
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_linux_i386, path: cloud }
 
       - name: Build cloud_linux_arm64
         env: { GOOS: linux, GOARCH: arm64 }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_linux_arm64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_linux_arm64, path: cloud }
 
       - name: Build cloud_linux_arm
         env: { GOOS: linux, GOARCH: arm, GOARM: 7 }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_linux_arm
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_linux_arm, path: cloud }
 
       - name: Build cloud_linux_armv6
         env: { GOOS: linux, GOARCH: arm, GOARM: 6 }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_linux_armv6
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_linux_armv6, path: cloud }
 
       - name: Build cloud_linux_mipsel
         env: { GOOS: linux, GOARCH: mipsle }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_linux_mipsel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_linux_mipsel, path: cloud }
 
       - name: Build cloud_mac_amd64
         env: { GOOS: darwin, GOARCH: amd64 }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_mac_amd64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_mac_amd64, path: cloud }
 
       - name: Build cloud_mac_arm64
         env: { GOOS: darwin, GOARCH: arm64 }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_mac_arm64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_mac_arm64, path: cloud }
 
       - name: Build cloud_freebsd_amd64
         env: { GOOS: freebsd, GOARCH: amd64 }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_freebsd_amd64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_freebsd_amd64, path: cloud }
 
       - name: Build cloud_freebsd_arm64
         env: { GOOS: freebsd, GOARCH: arm64 }
         run: go build -ldflags "-s -w" -trimpath -o cloud
       - name: Upload cloud_freebsd_arm64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: cloud_freebsd_arm64, path: cloud }
 
   package-and-release:
@@ -115,13 +115,13 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        
+        uses: actions/checkout@v6
+
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
-          
+
       - name: Get version from package.json
         id: package-version
         uses: martinbeentjes/npm-get-version-action@v1.3.1
@@ -129,7 +129,7 @@ jobs:
       - name: Create ZIP files with specific naming scheme
         run: |
           mkdir -p release
-          
+
           # Function to get OS and architecture names for the filename
           function get_os_arch() {
             local artifact=$1
@@ -164,7 +164,7 @@ jobs:
               echo "unknown"
             fi
           }
-          
+
           # Create a zip for each artifact with the proper naming scheme
           for dir in artifacts/*; do
             artifact=$(basename "$dir")
@@ -191,7 +191,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

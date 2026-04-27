@@ -9,20 +9,12 @@ import (
 )
 
 func main() {
-	app.Version = "0.0.5"
+	app.Version = "0.0.6"
 
-	// Initialize logger
 	log.Init()
-
-	// Initialize app
 	app.Init()
-
-	// Initialize proxy
 	proxy.Init()
-
-	// Initialize tunnel
 	tunnel.Init()
 
-	// Wait until a signal is received
 	shell.RunUntilSignal()
 }

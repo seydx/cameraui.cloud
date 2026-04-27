@@ -15,6 +15,10 @@ type Config struct {
 
 var globalCfg Config
 
+func GetConfig() *Config {
+	return &globalCfg
+}
+
 func initConfig() {
 	globalCfg = Config{
 		NATSEndpoints: strings.Split(os.Getenv("PROXY_ENDPOINTS"), ","),
@@ -23,8 +27,4 @@ func initConfig() {
 		LocalEndpoint: "localhost",
 		LocalPort:     os.Getenv("LOCAL_PORT"),
 	}
-}
-
-func GetConfig() *Config {
-	return &globalCfg
 }

@@ -6,24 +6,31 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+
 	"github.com/seydx/cameraui.com/cloud-client/internal/app"
 	"github.com/seydx/cameraui.com/cloud-client/internal/packer"
 	"github.com/seydx/cameraui.com/cloud-client/pkg/log"
 )
 
+// Client wraps a NATS connection and tracks the handlers registered against it.
+// One Client is created per process by Init and exposed via GetClient.
 type Client struct {
 	conn     *nats.Conn
 	handlers map[string]nats.MsgHandler
 }
 
+// Response is the standard envelope used for request/reply traffic over NATS.
 type Response struct {
-	Success bool        `msgpack:"success"`
-	Data    interface{} `msgpack:"data,omitempty"`
-	Error   string      `msgpack:"error,omitempty"`
+	Success bool   `msgpack:"success"`
+	Data    any    `msgpack:"data,omitempty"`
+	Error   string `msgpack:"error,omitempty"`
 }
 
+// GlobalClient is the process-wide NATS client initialised by Init.
 var GlobalClient *Client
 
+// Init connects to the camera.ui server and stores the resulting client in
+// GlobalClient. Calls log.Fatal if the connection cannot be established.
 func Init() {
 	client, err := connect()
 	if err != nil {
@@ -43,8 +50,11 @@ func (c *Client) RegisterHandler(subject string, handler nats.MsgHandler) error 
 		return fmt.Errorf("failed to subscribe to %s: %w", subject, err)
 	}
 
-	// Set queue group to allow load balancing
-	sub.SetPendingLimits(-1, -1) // unlimited pending msgs
+	// Allow unlimited pending messages — long-lived tunnel handlers shouldn't
+	// be capped by NATS' default 64k queue.
+	if err := sub.SetPendingLimits(-1, -1); err != nil {
+		return fmt.Errorf("failed to set pending limits for %s: %w", subject, err)
+	}
 
 	c.handlers[subject] = handler
 
@@ -57,14 +67,16 @@ func (c *Client) RegisterQueueHandler(subject, queue string, handler nats.MsgHan
 		return fmt.Errorf("failed to queue subscribe to %s: %w", subject, err)
 	}
 
-	sub.SetPendingLimits(-1, -1)
+	if err := sub.SetPendingLimits(-1, -1); err != nil {
+		return fmt.Errorf("failed to set pending limits for %s: %w", subject, err)
+	}
 
 	c.handlers[subject] = handler
 
 	return nil
 }
 
-func (c *Client) Publish(subject string, data interface{}) error {
+func (c *Client) Publish(subject string, data any) error {
 	packed, err := packer.PackMessage(data)
 	if err != nil {
 		return fmt.Errorf("failed to pack message: %w", err)
@@ -73,7 +85,7 @@ func (c *Client) Publish(subject string, data interface{}) error {
 	return c.conn.Publish(subject, packed)
 }
 
-func (c *Client) Request(subject string, data interface{}, timeout time.Duration) (*Response, error) {
+func (c *Client) Request(subject string, data any, timeout time.Duration) (*Response, error) {
 	packed, err := packer.PackMessage(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack request: %w", err)
@@ -97,7 +109,7 @@ func (c *Client) Request(subject string, data interface{}, timeout time.Duration
 	return &response, nil
 }
 
-func (c *Client) RequestWithContext(ctx context.Context, subject string, data interface{}) (*Response, error) {
+func (c *Client) RequestWithContext(ctx context.Context, subject string, data any) (*Response, error) {
 	packed, err := packer.PackMessage(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack request: %w", err)
@@ -117,7 +129,7 @@ func (c *Client) RequestWithContext(ctx context.Context, subject string, data in
 	return &response, nil
 }
 
-func (c *Client) Respond(msg *nats.Msg, data interface{}) error {
+func (c *Client) Respond(msg *nats.Msg, data any) error {
 	if msg.Reply == "" {
 		return fmt.Errorf("no reply subject in message")
 	}
@@ -138,7 +150,7 @@ func (c *Client) RespondError(msg *nats.Msg, message string) error {
 	return c.Respond(msg, response)
 }
 
-func (c *Client) RespondSuccess(msg *nats.Msg, data interface{}) error {
+func (c *Client) RespondSuccess(msg *nats.Msg, data any) error {
 	response := Response{
 		Success: true,
 		Data:    data,
@@ -184,7 +196,7 @@ func connect() (*Client, error) {
 		nats.Name("camera.ui cloud"),
 		nats.UserInfo(cfg.NATSUser, cfg.NATSPassword),
 		nats.ReconnectWait(2 * time.Second),
-		nats.MaxReconnects(-1), // infinite reconnects
+		nats.MaxReconnects(-1),
 		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
 			if err != nil {
 				log.Logger.Warn().Err(err).Msg("Proxy disconnected")

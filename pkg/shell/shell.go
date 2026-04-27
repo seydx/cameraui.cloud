@@ -9,6 +9,8 @@ import (
 	"syscall"
 )
 
+// QuoteSplit splits a shell-style command string into argv tokens, honouring
+// single- and double-quoted segments. Returns nil on an unterminated quote.
 func QuoteSplit(s string) []string {
 	var a []string
 
@@ -38,6 +40,8 @@ func QuoteSplit(s string) []string {
 	return a
 }
 
+// RunUntilSignal blocks until the process receives SIGINT or SIGTERM, then
+// prints the received signal name to stdout and returns.
 func RunUntilSignal() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
