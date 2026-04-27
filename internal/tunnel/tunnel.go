@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -484,7 +485,7 @@ func (t *TunnelConnection) pumpWebSocket(stream net.Conn, localConn net.Conn, re
 
 	go func() {
 		defer wg.Done()
-		if _, err := io.Copy(localConn, stream); err != nil && t.OnError != nil {
+		if _, err := io.Copy(localConn, stream); err != nil && !isBenignCloseError(err) && t.OnError != nil {
 			t.OnError(fmt.Errorf("WebSocket upstream copy ended: %w", err))
 		}
 		t.closeConn(localConn, "WebSocket upstream closed")
@@ -492,7 +493,7 @@ func (t *TunnelConnection) pumpWebSocket(stream net.Conn, localConn net.Conn, re
 
 	go func() {
 		defer wg.Done()
-		if _, err := io.Copy(stream, localConn); err != nil && t.OnError != nil {
+		if _, err := io.Copy(stream, localConn); err != nil && !isBenignCloseError(err) && t.OnError != nil {
 			t.OnError(fmt.Errorf("WebSocket downstream copy ended: %w", err))
 		}
 		t.closeStream(stream, "WebSocket downstream closed")
@@ -508,13 +509,13 @@ func (t *TunnelConnection) writeBadGateway(stream net.Conn) {
 }
 
 func (t *TunnelConnection) closeStream(stream net.Conn, reason string) {
-	if err := stream.Close(); err != nil && t.OnError != nil {
+	if err := stream.Close(); err != nil && !isBenignCloseError(err) && t.OnError != nil {
 		t.OnError(fmt.Errorf("failed to close stream (%s): %w", reason, err))
 	}
 }
 
 func (t *TunnelConnection) closeConn(conn net.Conn, reason string) {
-	if err := conn.Close(); err != nil && t.OnError != nil {
+	if err := conn.Close(); err != nil && !isBenignCloseError(err) && t.OnError != nil {
 		t.OnError(fmt.Errorf("failed to close connection (%s): %w", reason, err))
 	}
 }
@@ -559,7 +560,15 @@ func (t *TunnelConnection) disconnect(reason string) {
 // the (*TunnelConnection).closeConn method to avoid the easy footgun of
 // thinking they're interchangeable.
 func closeConnLog(conn net.Conn, reason string) {
-	if err := conn.Close(); err != nil {
+	if err := conn.Close(); err != nil && !isBenignCloseError(err) {
 		log.Logger.Warn().Err(err).Str("reason", reason).Msg("Failed to close connection")
 	}
+}
+
+// isBenignCloseError reports whether err comes from closing an already-closed
+// connection — expected during the WebSocket pump teardown, where one
+// direction's close intentionally unblocks the other and the outer defer then
+// closes again.
+func isBenignCloseError(err error) bool {
+	return errors.Is(err, net.ErrClosed)
 }
