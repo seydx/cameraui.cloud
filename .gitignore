@@ -20,5 +20,4 @@ data/
 .idea/
 
 /.tmp
-/CLAUDE.md
 /node_modules
