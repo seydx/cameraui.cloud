@@ -12,7 +12,7 @@
     "lint": "staticcheck ./... && golangci-lint run ./...",
     "release": "bash scripts/release.sh",
     "test": "go test ./...",
-    "update": "updates --update ./"
+    "update": "updates -M npm,pypi,go,cargo,docker,make --update ./"
   },
   "repository": {
     "type": "git",
@@ -31,6 +31,6 @@
   },
   "homepage": "https://github.com/cameraui/tunnel#readme",
   "devDependencies": {
-    "updates": "^18.0.7"
+    "updates": "^18.1.0"
   }
 }
